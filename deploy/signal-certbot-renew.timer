@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Signal Monitor short-lived certificate every hour
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

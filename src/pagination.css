@@ -1,0 +1,23 @@
+.list-pagination { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 12px; padding:10px 14px; border-top:1px solid #263641; color:#8da2af; font-size:12px; min-width:0; }
+.list-pagination .list-page-info { line-height:1.6; overflow-wrap:anywhere; }
+.list-pagination .list-page-controls { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-left:auto; }
+.list-pagination .list-page-size { display:inline-flex; align-items:center; gap:6px; color:#b9cbd7; white-space:nowrap; }
+.list-pagination .list-page-size select { min-height:32px; padding:4px 8px; border:1px solid #2c414f; border-radius:6px; background:#15212b; color:#e0eee9; font:inherit; }
+.list-pagination .list-page-size select:focus-visible { outline:2px solid #91e3d7; outline-offset:2px; }
+.list-pagination nav { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+.list-pagination button { display:inline-flex; align-items:center; justify-content:center; min-width:32px; min-height:32px; padding:4px 8px; border:1px solid #2c414f; border-radius:6px; background:#15212b; color:#b9cbd7; font:inherit; line-height:1.4; cursor:pointer; white-space:nowrap; }
+.list-pagination .list-page-number { padding:5px; }
+.list-pagination button:hover:not(:disabled) { background:#20323c; color:#e0eee9; }
+.list-pagination button[aria-current="page"] { background:#193b39; border-color:#38726a; color:#91e3d7; }
+.list-pagination button:disabled { opacity:.4; cursor:default; }
+.list-pagination button:focus-visible { outline:2px solid #91e3d7; outline-offset:2px; }
+@media(max-width:600px) {
+  .list-pagination { padding:12px 8px; flex-direction:column; align-items:flex-start; gap:8px; }
+  .list-pagination .list-page-controls { margin-left:0; max-width:100%; }
+  .list-pagination nav, .list-pagination .list-page-size { max-width:100%; }
+  .list-pagination .list-page-size select { min-height:44px; }
+  .list-pagination button { min-width:30px; min-height:44px; padding-inline:7px; }
+  .list-pagination .list-page-number { padding-inline:3px; }
+}
+
+.list-pagination .list-page-gap { padding:0 2px; color:#8da2af; }

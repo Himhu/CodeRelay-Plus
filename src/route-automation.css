@@ -1,0 +1,35 @@
+.route-automation{min-width:0;padding:20px 0}.ra-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.ra-heading h2{font-size:1.125rem;margin:0}.ra-heading p,.ra-policy{color:#91a5b3;font-size:.8125rem;line-height:1.8}.ra-enabled{color:#82d8bc;border-color:#3f7565}.ra-summary{display:flex;flex-wrap:wrap;gap:12px 24px;margin:20px 0;color:#abc4cf;font-size:.8125rem}.route-automation .rw-search{max-width:540px;margin-bottom:18px;gap:12px}.ra-table td{max-width:360px;overflow-wrap:anywhere}.ra-table td p{font-size:.75rem;line-height:1.8}.ra-table summary,.ra-events summary{cursor:pointer}.ra-table button{white-space:nowrap}.ra-events{margin-top:22px;border-top:1px solid #2c3f4b;padding:18px 0}.ra-events ul{list-style:none;padding:0;max-height:380px;overflow:auto}.ra-events li{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid #263844;font-size:.8125rem;overflow-wrap:anywhere}.ra-events time,.ra-events span{color:#90a4b3;font-size:.75rem}@media(max-width:760px){.ra-heading{align-items:stretch;flex-direction:column}.ra-heading button,.ra-table button{min-height:44px}.ra-table td{max-width:none}.ra-table details{max-width:100%}.ra-summary{gap:8px 16px}}
+
+.ra-rules{margin:16px 0;color:#91a5b3;font-size:.8125rem}.ra-rules summary{cursor:pointer}.route-automation .rw-search>span{white-space:nowrap;font-size:.8125rem}.ra-table a{color:#8cdbcd;text-decoration:none}.ra-table a:hover{text-decoration:underline}
+
+.ra-table select{width:100%;min-width:140px;max-width:240px;background:#15242c;color:#d3e4ec;border:1px solid #334e5b;border-radius:6px;padding:9px;font:inherit;font-size:.8125rem}@media(max-width:760px){.ra-table select{min-width:0;min-height:44px;max-width:100%}}
+
+.ra-log-link{display:inline-block;margin-top:20px;color:#8cdbcd;font-size:.8125rem;text-decoration:none}.ra-log-link:hover{text-decoration:underline}
+
+.ra-family { display: block; width: fit-content; margin: 6px 0; padding: 3px 8px; border-radius: 5px; background: var(--bg); color: #8cdbcd; font-size: 12px; font-weight: 650; }
+
+.ra-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
+.ra-tools .rw-search { margin: 0; flex: 0 1 280px; max-width: 340px; height: 36px; }
+.ra-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.ra-filters button { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: #10191f; color: #a6bac6; border: 1px solid #314651; border-radius: 6px; font-size: .8125rem; white-space: nowrap; }
+.ra-filters button[aria-pressed="true"] { background: #1b3835; color: #a2e5d5; border-color: #3f7565; }
+.ra-filters span { font-size: .75rem; font-variant-numeric: tabular-nums; color: #7f98a6; }
+.ra-filters button[aria-pressed="true"] span { color: #8cdbcd; }
+.ra-summary { align-items: center; margin: 14px 0 12px; padding: 10px 0; border-top: 1px solid #24343e; border-bottom: 1px solid #24343e; }
+.ra-summary a { color: #8cdbcd; margin-left: auto; text-decoration: none; }
+.ra-summary a:hover { text-decoration: underline; }
+.ra-table summary { line-height: 1.8; color: #b7c9d3; }
+.ra-table td { vertical-align: top; }
+.ra-gates { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.ra-gates button { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border: 1px solid #314651; border-radius: 6px; background: #10191f; color: #a6bac6; font-size: .8125rem; white-space: nowrap; }
+.ra-gates button[aria-pressed="true"] { background: #1b3835; color: #a2e5d5; border-color: #3f7565; }
+.ra-gates .ra-approve { color: #d7efe8; border-color: #3f7565; background: #16302c; }
+.ra-rank { display: inline-flex; align-items: center; gap: 8px; margin-left: 4px; color: #91a5b3; font-size: .8125rem; white-space: nowrap; }
+.ra-rank select { height: 36px; min-width: 132px; border: 1px solid #314651; border-radius: 6px; background: #10191f; color: #d3e4ec; padding: 0 10px; font: inherit; font-size: .8125rem; }
+@media (max-width: 760px) {
+  .ra-tools { align-items: stretch; }
+  .ra-tools .rw-search { flex-basis: 100%; max-width: none; height: 44px; }
+  .ra-filters button, .ra-gates button, .ra-rank select { height: 44px; }
+  .ra-rank { flex-basis: 100%; margin-left: 0; }
+  .ra-rank select { flex: 1; width: 100%; }
+}

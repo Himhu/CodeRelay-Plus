@@ -1,0 +1,242 @@
+import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import test from 'node:test'
+import { once } from 'node:events'
+import { createServer as createHTTPServer } from 'node:http'
+import { chromium } from 'playwright'
+import { createServer } from 'vite'
+
+test('navigation and upstream configurations survive reloads and service restarts', async t => {
+  let quota = 250000, unavailable = false, keysUnavailable = false, groupRatio = 0.5, accessToken = 'browser-token-secret'
+  const upstream = createHTTPServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json')
+    if (req.url === '/v1/models') {
+      assert.equal(req.headers.authorization, 'Bearer private-api-key-secret')
+      return res.end(JSON.stringify({ data: [{ id: 'gpt-5.1' }] }))
+    }
+    if (req.url.startsWith('/api/token/?')) {
+      res.statusCode = keysUnavailable ? 503 : 200
+      return res.end(JSON.stringify(keysUnavailable ? { success: false } : { success: true, data: { p: 1, page_size: 100, total: 1,
+        items: [{ id: 21, name: 'VIP 已有令牌', group: 'VIP 线路', status: 1, key: 'private-api-key-secret' }] } }))
+    }
+    if (req.url === '/api/token/21/key') return res.end(JSON.stringify({ success: true, data: { key: 'private-api-key-secret' } }))
+    if (req.url === '/api/status') return res.end(JSON.stringify({ success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD' } }))
+    if (req.url === '/api/user/self/groups') {
+      assert.equal(req.headers['new-api-user'], '9')
+      res.statusCode = unavailable ? 503 : 200
+      return res.end(JSON.stringify(unavailable ? { success: false } : { success: true, data: { 'VIP 线路': { ratio: groupRatio }, auto: { ratio: '自动' } } }))
+    }
+    assert.equal(req.url, '/api/user/self')
+    assert.equal(req.headers.authorization, `Bearer ${accessToken}`)
+    assert.equal(req.headers['new-api-user'], '9')
+    res.statusCode = unavailable ? 503 : 200
+    res.end(JSON.stringify(unavailable ? { success: false } : { success: true, data: { id: 9, quota } }))
+  })
+  upstream.listen(0, '127.0.0.1'); await once(upstream, 'listening')
+  t.after(() => upstream.close())
+  const directory = mkdtempSync(join(tmpdir(), 'signal-navigation-'))
+  const previousDirectory = process.env.SIGNAL_DATA_DIR
+  process.env.SIGNAL_DATA_DIR = directory
+  t.after(() => {
+    if (previousDirectory === undefined) delete process.env.SIGNAL_DATA_DIR
+    else process.env.SIGNAL_DATA_DIR = previousDirectory
+    rmSync(directory, { recursive: true, force: true })
+  })
+  let server = await createServer({ root: fileURLToPath(new URL('../', import.meta.url)),
+    cacheDir: join(directory, 'node_modules', '.vite'), server: { host: '127.0.0.1', port: 0 } })
+  t.after(() => server.close())
+  await server.listen()
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH })
+  t.after(() => browser.close())
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  let base = server.resolvedUrls.local[0]
+  const heading = name => page.getByRole('heading', { level: 1, name, exact: true }).waitFor()
+  await page.goto(base)
+  await heading('总览')
+  await page.getByRole('button', { name: '调度站点', exact: true }).click()
+  await heading('调度站点')
+  assert.equal(new URL(page.url()).hash, '#secondary-channels')
+  await page.reload()
+  await heading('调度站点')
+  await page.getByText('还没有调度站点', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '总览', exact: true }).click()
+  await heading('总览')
+  await page.goBack()
+  await heading('调度站点')
+  await page.goForward()
+  await heading('总览')
+  const linked = await browser.newPage()
+  await linked.goto(`${base}#main-channels`)
+  await linked.getByRole('heading', { level: 1, name: '总览', exact: true }).waitFor()
+  assert.equal(await linked.getByRole('button', { name: '主站渠道', exact: true }).count(), 0)
+  await linked.goto(`${base}#secondary-channels`)
+  await linked.getByRole('heading', { level: 1, name: '调度站点', exact: true }).waitFor()
+  for (const [label, title, route] of [['日志中心', '日志中心', 'logs'], ['探针监控', '探针监控', 'probes'], ['设置', '设置', 'settings']]) {
+    await page.getByRole('button', { name: label, exact: true }).click()
+    await heading(title)
+    assert.equal(new URL(page.url()).hash, `#${route}`)
+    await page.reload()
+    await heading(title)
+  }
+  await page.goto(`${base}#unknown-page`)
+  await heading('总览')
+  await page.goto(`${base}#alerts`)
+  await heading('日志中心')
+  await page.getByRole('button', { name: '总览', exact: true }).click()
+  await heading('总览')
+  assert.equal(new URL(page.url()).hash, '#overview')
+
+  await page.getByRole('button', { name: '添加渠道', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: '添加上游渠道', exact: true })
+  assert.equal(await dialog.getByRole('checkbox', { name: /^自动探测新令牌/ }).isChecked(), true)
+  await dialog.locator('[name="channel-name"]').fill('持久化 NewAPI 渠道')
+  await dialog.locator('[name="endpoint"]').fill(`http://127.0.0.1:${upstream.address().port}/v1`)
+  await dialog.locator('[name="access-token"]').fill('browser-token-secret')
+  await dialog.locator('[name="recharge-rate"]').fill('1.25')
+  await dialog.locator('[name="newapi-user-id"]').fill('9')
+  await page.route('**/api/upstream-channels', route => route.fulfill({ status: 500, json: { error: '测试写入失败' } }))
+  await dialog.getByRole('button', { name: '保存配置', exact: true }).click()
+  await dialog.getByRole('alert').waitFor()
+  assert.equal(await dialog.locator('[name="channel-name"]').inputValue(), '持久化 NewAPI 渠道')
+  assert.equal(await dialog.locator('[name="access-token"]').inputValue(), 'browser-token-secret')
+  assert.equal(await page.locator('.channels-panel tbody tr').filter({ hasText: '持久化 NewAPI 渠道' }).count(), 0)
+  await page.unroute('**/api/upstream-channels')
+  await dialog.getByRole('button', { name: '保存配置', exact: true }).click()
+  await dialog.waitFor({ state: 'detached' })
+  await page.locator('.channels-panel').getByText('持久化 NewAPI 渠道', { exact: true }).waitFor()
+  assert.equal((await page.request.get(`${base}api/upstream-channels`).then(response => response.json())).channels[0].rechargeRate, 1.25)
+  assert.equal((await page.request.get(`${base}api/upstream-channels`).then(response => response.json())).channels[0].autoProbeNewTokens, true)
+  await page.getByRole('columnheader', { name: '账户余额', exact: true }).waitFor()
+  assert.equal(await page.getByRole('columnheader', { name: '延迟 (P95)', exact: true }).count(), 0)
+  const balanceCell = page.getByLabel('持久化 NewAPI 渠道 账户余额', { exact: true })
+  await page.getByRole('button', { name: '编辑 持久化 NewAPI 渠道', exact: true }).click()
+  const editDialog = page.getByRole('dialog', { name: '编辑上游渠道', exact: true })
+  assert.equal(await editDialog.getByRole('checkbox', { name: /^自动探测新令牌/ }).isChecked(), true)
+  await editDialog.getByRole('checkbox', { name: /^自动探测新令牌/ }).uncheck()
+  await editDialog.locator('[name="recharge-rate"]').fill('2.5')
+  assert.equal(await editDialog.locator('[name="access-token"]').inputValue(), '')
+  await editDialog.getByRole('button', { name: '保存修改', exact: true }).click()
+  await editDialog.waitFor({ state: 'detached' })
+  await page.locator('.channels-panel').getByText('持久化 NewAPI 渠道', { exact: true }).waitFor()
+  let edited = await page.request.get(`${base}api/upstream-channels`).then(response => response.json())
+  assert.equal(edited.channels[0].rechargeRate, 2.5)
+  assert.equal(edited.channels[0].autoProbeNewTokens, false)
+  assert.equal(edited.channels[0].needsAuthorization, false)
+  await page.getByRole('button', { name: '编辑 持久化 NewAPI 渠道', exact: true }).click()
+  const editAgain = page.getByRole('dialog', { name: '编辑上游渠道', exact: true })
+  await editAgain.locator('[name="access-token"]').fill('browser-token-secret-2')
+  accessToken = 'browser-token-secret-2'
+  await editAgain.getByRole('button', { name: '保存修改', exact: true }).click()
+  await editAgain.waitFor({ state: 'detached' })
+  edited = await page.request.get(`${base}api/upstream-channels`).then(response => response.json())
+  assert.equal(edited.channels[0].needsAuthorization, false)
+  await page.getByRole('button', { name: '刷新余额 持久化 NewAPI 渠道', exact: true }).click()
+  await balanceCell.getByText('$0.20', { exact: false }).waitFor()
+  await balanceCell.locator('summary').click()
+  await balanceCell.getByText('上游原始余额：$0.50 USD', { exact: true }).waitFor()
+  const schedule = await page.request.get(`${base}api/upstream-channels`).then(response => response.json())
+  const nextCheckAt = schedule.channels[0].balance.nextCheckAt
+  assert.ok(Number.isFinite(Date.parse(nextCheckAt)))
+  assert.equal(await balanceCell.locator('time').getAttribute('datetime'), nextCheckAt)
+  await balanceCell.getByText(/^下次刷新：/).waitFor()
+  quota = 0
+  await page.getByRole('button', { name: '刷新余额 持久化 NewAPI 渠道', exact: true }).click()
+  await balanceCell.locator('strong').filter({ hasText: '$0.00' }).waitFor()
+  unavailable = true
+  await page.getByRole('button', { name: '刷新余额 持久化 NewAPI 渠道', exact: true }).click()
+  await balanceCell.getByText('查询失败 · 上次结果', { exact: true }).waitFor()
+  assert.match(await balanceCell.innerText(), /\$0\.00/)
+  unavailable = false
+  await page.getByRole('button', { name: '刷新余额 持久化 NewAPI 渠道', exact: true }).click()
+  await balanceCell.getByText('查询失败 · 上次结果', { exact: true }).waitFor({ state: 'detached' })
+  await page.getByRole('button', { name: '查看 持久化 NewAPI 渠道 的线路倍率', exact: true }).click()
+  const detail = page.getByRole('dialog', { name: '持久化 NewAPI 渠道', exact: true })
+  await detail.getByRole('heading', { name: 'VIP 线路', exact: true }).waitFor()
+  await detail.getByText('0.5×', { exact: true }).waitFor()
+  await detail.getByText('已创建 1 个令牌', { exact: true }).waitFor()
+  const createdKeys = detail.locator('.created-keys')
+  const unkeyedRoutes = detail.locator('.unkeyed-routes')
+  assert.equal(await createdKeys.getAttribute('open'), null)
+  assert.equal(await unkeyedRoutes.getAttribute('open'), null)
+  assert.equal(await detail.locator('.route-groups .route-key-list').count(), 0)
+  await createdKeys.locator('summary').click()
+  await createdKeys.getByText('VIP 已有令牌', { exact: true }).waitFor()
+  await unkeyedRoutes.getByText('未创建令牌的线路（1）', { exact: true }).click()
+  await unkeyedRoutes.getByText('auto', { exact: true }).waitFor()
+  assert.equal(await unkeyedRoutes.getByText('VIP 线路', { exact: true }).count(), 0)
+  await createdKeys.locator('summary').click()
+  assert.equal(await createdKeys.getAttribute('open'), null)
+  await detail.getByText('未创建令牌', { exact: true }).waitFor()
+  assert.ok(!await detail.innerText().then(text => text.includes('private-api-key-secret')))
+  await detail.getByText('按实际选中的分组计费。', { exact: true }).waitFor()
+  assert.equal(await detail.locator('.spark').count(), 0)
+  groupRatio = 0.25
+  await detail.getByRole('button', { name: '刷新线路', exact: true }).click()
+  await detail.getByText('0.25×', { exact: true }).waitFor()
+  keysUnavailable = true
+  await detail.getByRole('button', { name: '刷新线路', exact: true }).click()
+  await detail.locator('.key-error').waitFor()
+  await unkeyedRoutes.getByText('上次未发现令牌的线路（1）', { exact: true }).waitFor()
+  await detail.locator('.route-groups').getByText('已创建 1 个令牌（上次结果）', { exact: true }).waitFor()
+  await detail.getByText('上次未发现令牌', { exact: true }).waitFor()
+  assert.equal(await detail.getByText('未创建令牌', { exact: true }).count(), 0)
+  await detail.getByText('0.25×', { exact: true }).waitFor()
+  keysUnavailable = false
+  await detail.getByRole('button', { name: '刷新线路', exact: true }).click()
+  await detail.locator('.key-error').waitFor({ state: 'detached' })
+  unavailable = true
+  await detail.getByRole('button', { name: '刷新线路', exact: true }).click()
+  await detail.locator('.site-error').waitFor()
+  assert.match(await detail.locator('.site-error').innerText(), /保留上次/)
+  await detail.getByText('0.25×', { exact: true }).waitFor()
+  unavailable = false
+  await detail.getByRole('button', { name: '刷新线路', exact: true }).click()
+  await detail.getByRole('alert').waitFor({ state: 'detached' })
+  await page.keyboard.press('Escape')
+  await detail.waitFor({ state: 'detached' })
+  await page.reload()
+  await page.locator('.channels-panel').getByText('持久化 NewAPI 渠道', { exact: true }).waitFor()
+  await balanceCell.locator('strong').filter({ hasText: '$0.00' }).waitFor()
+  await page.getByRole('button', { name: '添加渠道', exact: true }).click()
+  assert.equal(await dialog.locator('[name="access-token"]').inputValue(), '')
+  await dialog.getByText('Sub2API', { exact: true }).click()
+  await dialog.locator('[name="channel-name"]').fill('持久化 Sub2API 地址')
+  await dialog.locator('[name="endpoint"]').fill('https://sub.example.test')
+  await dialog.getByRole('button', { name: '保存配置', exact: true }).click()
+  await dialog.waitFor({ state: 'detached' })
+  await page.locator('.channels-panel').getByText('持久化 Sub2API 地址', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '调度站点', exact: true }).click()
+  await page.getByText('还没有调度站点', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '总览', exact: true }).click()
+  await page.locator('.channels-panel').getByText('持久化 NewAPI 渠道', { exact: true }).waitFor()
+  await linked.goto(base)
+  await linked.locator('.channels-panel').getByText('持久化 Sub2API 地址', { exact: true }).waitFor()
+  const publicChannels = await page.request.get(`${base}api/upstream-channels`).then(response => response.json())
+  assert.equal(publicChannels.channels.length, 2)
+  assert.ok(!JSON.stringify(publicChannels).includes('browser-token-secret'))
+  assert.ok(!await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('browser-token-secret')))
+  await linked.close()
+  await server.close()
+  server = await createServer({ root: fileURLToPath(new URL('../', import.meta.url)),
+    cacheDir: join(directory, 'node_modules', '.vite'), server: { host: '127.0.0.1', port: 0 } })
+  await server.listen()
+  base = server.resolvedUrls.local[0]
+  await page.goto(base)
+  await page.locator('.channels-panel').getByText('持久化 NewAPI 渠道', { exact: true }).waitFor()
+  await page.locator('.channels-panel').getByText('持久化 Sub2API 地址', { exact: true }).waitFor()
+  assert.equal(await page.locator('.channels-panel tbody tr').count(), 2)
+  await page.route('**/api/upstream-channels', route => route.fulfill({ status: 500, json: { error: '测试读取失败' } }))
+  await page.reload()
+  await page.getByRole('alert').waitFor()
+  assert.equal(await page.getByText('还没有渠道，点击“添加渠道”开始配置', { exact: true }).count(), 0)
+  await page.unroute('**/api/upstream-channels')
+  await page.getByRole('button', { name: '重试', exact: true }).click()
+  await page.locator('.channels-panel').getByText('持久化 NewAPI 渠道', { exact: true }).waitFor()
+  assert.equal(await page.locator('.channels-panel tbody tr').count(), 2)
+  assert.deepEqual(errors, [])
+})

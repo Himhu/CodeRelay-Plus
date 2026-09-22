@@ -1,0 +1,31 @@
+.balance-notice{margin:20px 0 4px;border:1px solid #695132;border-radius:9px;background:#252016;color:#e4c89b;min-width:0;font-size:.8125rem}
+.balance-notice-bar{display:flex;align-items:center;gap:14px;padding:10px 14px;min-width:0}
+.balance-notice-label{display:flex;align-items:center;gap:7px;flex-shrink:0;color:#efc27a}
+.balance-notice-window{flex:1;min-width:0}
+.balance-notice-copy{display:flex;align-items:center;flex-wrap:wrap;gap:8px 24px}
+.balance-notice-copy>span{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;max-width:100%;min-width:0}.balance-notice-copy b{overflow-wrap:anywhere;min-width:0}
+.balance-notice-copy strong{color:#ffd895;font-variant-numeric:tabular-nums;white-space:nowrap}
+.balance-notice-copy em{font-style:normal;color:#aa9e89;font-size:.75rem}
+.balance-notice a{color:#b8d9d2;text-decoration:none;white-space:nowrap}
+.balance-notice a:hover{text-decoration:underline}
+.balance-notice-pending{flex:1;min-width:0;overflow-wrap:anywhere}
+.balance-notice summary{cursor:pointer;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;padding:8px 14px;border-top:1px solid #64502f55;color:#baa688;font-size:.75rem}
+.balance-notice summary:before{content:'+'}.balance-notice details[open] summary:before{content:'−'}.balance-notice summary>span{margin-left:auto}
+.balance-notice-caption{margin:10px 14px;color:#a99e8c;font-size:.75rem}.balance-notice-caption a{display:inline-block;margin-left:8px}
+.balance-notice ul{list-style:none;margin:0;padding:0 14px 10px;max-height:300px;overflow:auto}
+.balance-notice li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 14px;padding:10px 0;border-top:1px solid #64502f55;overflow-wrap:anywhere}
+.balance-notice li>span{grid-column:1/3;color:#b0a591;font-size:.75rem}.balance-notice li>strong{font-variant-numeric:tabular-nums}
+.balance-notice-actions{grid-column:3;grid-row:1/3;align-self:center}
+.balance-notice-actions button,.balance-notice-actions a{display:flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:7px 12px;border:1px solid #52655a;border-radius:6px;background:#182c27;color:#b8e3d6;font-size:.75rem;white-space:nowrap}
+.balance-notice-actions button:hover,.balance-notice-actions a:hover{background:#244139;text-decoration:none}
+.balance-notice-actions button:focus-visible,.balance-notice-actions a:focus-visible{outline:2px solid #83e0d3;outline-offset:3px}
+.balance-notice-error{margin:8px 14px;color:#e4b293}.balance-notice-error button{margin-left:10px;background:transparent;color:#b8d9d2;text-decoration:underline}
+.console-settings{margin-top:24px;max-width:740px}.console-settings .panel-header{padding:18px 18px 0}.console-settings .panel-header h2{font-size:1rem}
+.balance-settings-form{padding:22px 18px}.balance-settings-form label{display:block;font-weight:600;margin-bottom:10px}.balance-settings-form label span{color:#899ba6;margin-left:8px;font-size:.75rem}
+.balance-threshold-input{display:flex;align-items:center;gap:10px;max-width:270px;background:#0c141d;border:1px solid #344856;border-radius:7px;padding:9px 12px;color:#a8bfc5}
+.balance-threshold-input:focus-within{border-color:#35d2c1}.balance-threshold-input input{background:transparent;border:0;outline:none;min-width:0;width:100%;color:#e8edf3;font-variant-numeric:tabular-nums}
+.balance-settings-form p{color:#879ba8;font-size:.8125rem;line-height:1.8;margin:12px 0}
+.balance-settings-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:24px}.balance-settings-actions>span{color:#748994;font-size:.75rem}
+.balance-settings-form .balance-settings-saved{color:#76d7b3}.balance-settings-form .site-error{color:#ff9a9f}
+@media(max-width:600px){.balance-notice li{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}.balance-notice-actions{grid-column:1/-1;grid-row:auto;justify-self:end}.balance-notice-actions button,.balance-notice-actions a{min-height:44px}}
+@media(max-width:600px){.balance-notice-bar{gap:10px;flex-wrap:wrap;padding:8px 12px}.balance-notice-label{font-size:.8125rem}.balance-notice-window{order:4;flex-basis:100%}.balance-notice-bar>a{display:flex;align-items:center;min-height:44px;margin-left:auto}.balance-notice summary{min-height:44px;align-items:center;padding:8px 12px}.balance-notice-caption a{white-space:normal;margin-left:0}.balance-settings-form{padding:20px 14px}.balance-threshold-input{min-height:44px}.balance-settings-actions .probe-button{min-height:44px}.balance-notice-pending{flex-basis:100%;order:4}}

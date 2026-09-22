@@ -1,0 +1,44 @@
+﻿站点,渠道ID,令牌ID,原名称,新名称,对应调度账号ID
+Reverse API,152f9863-7f8e-4cdf-bdfd-1e18508f86ed,733,Reverse API · gptpro · #733,Reverse API · 0.12×,7379
+老莫渠道,3d8b2823-1f3e-4195-8676-844fc0b6bdda,51,老莫渠道 · gpt-Sale · #51,老莫渠道 · 0.12×,7358
+小白API,4a3a1550-d9f5-4db4-ab9f-27d94163a8ce,4563,小白API · kiro | 99缓存（1m） · #4563,小白API · 0.12×,
+小白API,4a3a1550-d9f5-4db4-ab9f-27d94163a8ce,6454,小白API · codex-稳定通道 · #6454,小白API · 0.08×,
+小白API,4a3a1550-d9f5-4db4-ab9f-27d94163a8ce,11779,小白API · pro池 · #11779,小白API · 0.14×,
+小白API,4a3a1550-d9f5-4db4-ab9f-27d94163a8ce,13163,小白API · codex-特惠通道 · #13163,小白API · 0.06×,7421
+小白API,4a3a1550-d9f5-4db4-ab9f-27d94163a8ce,14212,小白API · kiro 90缓存（1m） · #14212,小白API · 0.06×,7424
+nvtokens,5510caf6-4c19-4d9c-8a54-f8a804193271,9590,nvtokens · 不降智 · #9590,nvtokens · 0.3×,
+nvtokens,5510caf6-4c19-4d9c-8a54-f8a804193271,18511,nvtokens · CC 满血自营分组 MAX · #18511,nvtokens · 1×,
+刘总,5bd20758-50e0-4cd9-a64b-5622a8185eda,22233,刘总 · glm · #22233,刘总 · 0.4×,
+刘总,5bd20758-50e0-4cd9-a64b-5622a8185eda,22207,刘总 · gemini · #22207,刘总 · 0.25×,
+刘总,5bd20758-50e0-4cd9-a64b-5622a8185eda,14923,刘总 · glm · #14923,刘总 · 0.4×,
+刘总,5bd20758-50e0-4cd9-a64b-5622a8185eda,12762,刘总 · gptproo · #12762,刘总 · 0.2×,7422
+刘总,5bd20758-50e0-4cd9-a64b-5622a8185eda,2534,刘总 · gptplus · #2534,刘总 · 0.1×,7423
+Loomex,8d358ce6-5446-4c23-acdb-a9aa98284f84,1458,Loomex · Codex BugPro（蒸馏专用分组） · #1458,Loomex · 0.1×,
+Loomex,8d358ce6-5446-4c23-acdb-a9aa98284f84,1459,Loomex · Codex BugPro（自己渠道） · #1459,Loomex · 0.08×,
+Loomex,8d358ce6-5446-4c23-acdb-a9aa98284f84,1460,Loomex · Kimi【满血-阿里渠道】 · #1460,Loomex · 0.15×,7425
+Loomex,8d358ce6-5446-4c23-acdb-a9aa98284f84,1461,Loomex · Gemini（Antigravity全模型） · #1461,Loomex · 0.19×,7426
+超超站,aa9f853c-d5f1-4751-a8f5-2cbf14115d6b,2882,超超站 · GPT-Plus【稳定】 · #2882,超超站 · 0.08×,7427
+超超站,aa9f853c-d5f1-4751-a8f5-2cbf14115d6b,6476,超超站 · CC-Kiro · #6476,超超站 · 0.13×,
+超超站,aa9f853c-d5f1-4751-a8f5-2cbf14115d6b,6530,超超站 · GPT-Plus【特惠】 · #6530,超超站 · 0.058×,7428
+超超站,aa9f853c-d5f1-4751-a8f5-2cbf14115d6b,6533,超超站 · Grok-Heavy · #6533,超超站 · 0.1×,
+超超站,aa9f853c-d5f1-4751-a8f5-2cbf14115d6b,6669,超超站 · GPT-5X Team · #6669,超超站 · 0.11×,
+板栗API,b32a1769-279c-482a-aff5-6ed5563bf389,547,板栗API · cc-kiro高缓 · #547,板栗API · 0.1×,7429
+板栗API,b32a1769-279c-482a-aff5-6ed5563bf389,2832,板栗API · gpt-plus · #2832,板栗API · 0.13×,
+板栗API,b32a1769-279c-482a-aff5-6ed5563bf389,3346,板栗API · grok free · #3346,板栗API · 0.04×,
+板栗API,b32a1769-279c-482a-aff5-6ed5563bf389,3347,板栗API · grok1 free · #3347,板栗API · 0.04×,
+板栗API,b32a1769-279c-482a-aff5-6ed5563bf389,3348,板栗API · gemini · #3348,板栗API · 0.2×,7419
+Anc1ent API,c526d084-5568-4aeb-b7f0-50c4cd8f622b,724,Anc1ent API · Claude Kiro | 99%缓存(opus-4-8映射神话5) · #724,Anc1ent API · 0.085×,7367
+Anc1ent API,c526d084-5568-4aeb-b7f0-50c4cd8f622b,753,Anc1ent API · GPT Pro20x | 特惠PRO · #753,Anc1ent API · 0.12×,7380
+Anc1ent API,c526d084-5568-4aeb-b7f0-50c4cd8f622b,809,Anc1ent API · GPT Plus | 特惠分组 · #809,Anc1ent API · 0.06×,7415
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,26575,Bot Compute Fabric · 🚀codex-pro · #26575,Bot Compute Fabric · 0.25×,
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,18537,Bot Compute Fabric · 💸grok-promo · #18537,Bot Compute Fabric · 0.08×,7417
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,8937,Bot Compute Fabric · 🤓deepseek-v4-flash-0731 · #8937,Bot Compute Fabric · 倍率未知,
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,7834,Bot Compute Fabric · 🧪claude-kiro · #7834,Bot Compute Fabric · 0.12×,7347
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,7822,Bot Compute Fabric · 🪐gemini-antigravity · #7822,Bot Compute Fabric · 0.28×,7418
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,7476,Bot Compute Fabric · 078 · #7476,Bot Compute Fabric · 倍率未知,
+Bot Compute Fabric,ea7d7f62-6cd4-41c5-b35b-b375ad3462aa,5416,Bot Compute Fabric · ⚓codex-plus · #5416,Bot Compute Fabric · 0.08×,7420
+byecore,f2e1fcc1-4c5f-4dcd-9bd4-5729b7d91f69,1072,byecore · Claude-Max · #1072,byecore · 0.63×,
+byecore,f2e1fcc1-4c5f-4dcd-9bd4-5729b7d91f69,1071,byecore · Claude-Kiro · #1071,byecore · 0.1×,7416
+byecore,f2e1fcc1-4c5f-4dcd-9bd4-5729b7d91f69,1070,byecore · GPT-Plus · #1070,byecore · 0.05×,
+byecore,f2e1fcc1-4c5f-4dcd-9bd4-5729b7d91f69,962,byecore · GPT-Pro · #962,byecore · 0.14×,
+byecore,f2e1fcc1-4c5f-4dcd-9bd4-5729b7d91f69,582,byecore · Kimi · #582,byecore · 倍率未知,
