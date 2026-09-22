@@ -65,6 +65,7 @@ test('Sub2API login proofs, background renewal and reauthorization work in the b
       assert.equal(req.headers.authorization,'Bearer private-api-secret')
       return send(200,{object:'list',data:[{id:'gpt-5'}]})
     }
+    if(req.url==='/api/v1/announcements'||req.url==='/api/v1/subscriptions/progress') return send(200,{code:0,data:[]})
     assert.equal(req.url,'/api/v1/auth/me')
     assert.equal(req.headers.authorization,`Bearer browser-access-secret-${version}`)
     if(profileFailure==='revoked') return send(401,{code:'TOKEN_REVOKED'})

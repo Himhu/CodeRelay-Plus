@@ -1,13 +1,15 @@
 import { randomUUID, createHash } from 'node:crypto'
 import { createOperationLogs } from './operation-logs.js'
-import { createChannelStore, createSecondarySiteStore, createConsoleSettingsStore, createUserGatewayStore } from './site-store.js'
-import { balanceNotices, defaultSettings, validBalanceThreshold } from './console-settings.js'
+import { createChannelStore, createSecondarySiteStore, createConsoleSettingsStore, createUserGatewayStore, createQQBotStore } from './site-store.js'
+import { createQQBot, qqIncidents, readBody } from './qq-bot.js'
+import { applySettings, balanceNotices, normalizeSettings } from './console-settings.js'
 import { createSecondarySitesAPI } from './secondary-sites.js'
 import { createRouteDiscovery } from './route-discovery.js'
 import { SyncError, isRecord, textValue, localHost, readJSON, upstream } from './upstream-client.js'
 import { channelAuthView, createChannelAuth, loginSub2API } from './sub2api-auth.js'
 import { channelBalanceView } from './channel-balance.js'
 import { probeTokenPricing, userGroupsView } from './user-groups.js'
+import { watchView } from './upstream-watch.js'
 import { createUserAPIKey, deleteUserAPIKey, userAPIKeysView, usableAPIKey } from './user-api-keys.js'
 import { executeHealthProbe, HEALTH_PROBE_TIMEOUT_MS, listProbeModels, probeProtocol } from './probe-request.js'
 import { createChannelFunding } from './channel-funding.js'
@@ -22,7 +24,7 @@ function publicChannel(channel, nextCheckAt, now, probeCosts) {
   return { id: channel.id, name: channel.name, provider: channel.provider, endpoint: channel.endpoint,
     email: channel.email, userId: channel.userId, createdAt: channel.createdAt,
     rechargeRate: validRechargeRate(channel.rechargeRate) ? channel.rechargeRate : 1, autoProbeNewTokens: channel.autoProbeNewTokens === true, needsAuthorization: !channel.token,
-    auth: channelAuthView(channel), balance: { ...channelBalanceView(channel), nextCheckAt }, userGroups: userGroupsView(channel), apiKeys: userAPIKeysView(channel),
+    auth: channelAuthView(channel), balance: { ...channelBalanceView(channel), nextCheckAt }, userGroups: userGroupsView(channel), apiKeys: userAPIKeysView(channel), upstreamWatch: watchView(channel),
     probeSummary: channelProbeSummary(channel, now, probePolicy.intervalSec, token => probeCosts(channel, token)) }
 }
 
@@ -74,21 +76,23 @@ function nextTokenProbeAt(token, costBlocks) {
 }
 const insufficientBalance = channel => channel.balance?.status === 'ok' && typeof channel.balance.amount === 'number' && Number.isFinite(channel.balance.amount) && channel.balance.amount <= 0
 
-export function monitorAPI({ channelStore = null, secondaryStore = null, settingsStore = null, gatewayStore = null, now = Date.now, publicOrigin = null } = {}) {
+export function monitorAPI({ channelStore = null, secondaryStore = null, settingsStore = null, gatewayStore = null, qqStore = null, now = Date.now, publicOrigin = null } = {}) {
   const publicURL = publicOrigin ? new URL(publicOrigin) : null
   if (publicURL && (publicURL.protocol !== 'https:' || publicURL.origin !== publicOrigin)) {
     throw new Error('Public origin must be a canonical HTTPS origin without a path.')
   }
   const channels = new Map((channelStore?.load({ recent: true, now: now() }) ?? []).map(channel => [channel.id, channel]))
-  let settings = settingsStore?.load()[0] ?? { ...defaultSettings }
+  let settings = normalizeSettings(settingsStore?.load()?.[0])
   const settingsView = () => ({ settings, balanceNotices: balanceNotices(channels.values(), settings.lowBalanceThreshold, now()) })
   const logs = createOperationLogs({ store: channelStore, channels, now })
-  const auth = createChannelAuth({ channels, store: channelStore, now, logs })
+  const auth = createChannelAuth({ channels, store: channelStore, now, logs, watchSettings: () => settings })
   const discovery = createRouteDiscovery({ channels, auth, now, refreshModels, logs })
   const secondarySites = createSecondarySitesAPI({ store: secondaryStore, channels, channelStore, auth, discovery, now, logs })
   const probeCosts = (channel, token) => secondarySites.automation.probeCosts(channel, token)
   const funding = createChannelFunding({ channels, store: channelStore, auth, now, logs })
   const userGateways = createUserGateways({ store: gatewayStore, request: upstream, now, logs })
+  const qq = createQQBot({ store: qqStore, now, publicOrigin, log: entry => logs.record({ category: 'settings', ...entry }),
+    incidents: () => qqIncidents({ channels: [...channels.values()], sites: secondarySites.snapshot(), settings, now: now() }) })
   const publicChannels = () => {
     const time = now()
     return [...channels.values()].filter(channel => !channel.routingSource).map(channel => publicChannel(channel, auth.nextCheckAt(channel.id), time, probeCosts))
@@ -340,13 +344,33 @@ export function monitorAPI({ channelStore = null, secondaryStore = null, setting
     }
     return ''
   }
+  const qqResponse = (res, status, body) => {
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
+    res.end(JSON.stringify(body))
+  }
+  async function handleQQWebhook(req, res) {
+    try {
+      if (req.method !== 'POST') return qqResponse(res, 405, { error: '该接口不支持此操作。' })
+      const host = new URL(`http://${req.headers.host}`)
+      const allowedHost = publicURL ? req.headers.host === publicURL.host : localHost(host.hostname)
+      if (!allowedHost || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)) return qqResponse(res, 403, { error: '请求来源无效。' })
+      if (!req.headers['content-type']?.startsWith('application/json')) return qqResponse(res, 415, { error: '请求格式无效。' })
+      if (!String(req.headers['user-agent'] || '').includes('QQBot-Callback')) return qqResponse(res, 403, { error: '请求来源无效。' })
+      const result = await qq.webhook(await readBody(req, 65536), req.headers)
+      return qqResponse(res, result.status, result.body)
+    } catch (error) {
+      return qqResponse(res, error instanceof SyncError ? error.status : 500, { error: error instanceof SyncError ? error.message : '回调处理失败。' })
+    }
+  }
   const middleware = async (req, res, next) => {
     const path = req.url?.split('?')[0]
+    if (path === '/api/qq/webhook') return handleQQWebhook(req, res)
     const authMatch = path?.match(/^\/api\/upstream-channels\/([^/]+)\/auth\/check$/)
     const balanceMatch = path?.match(/^\/api\/upstream-channels\/([^/]+)\/balance\/check$/)
     const groupsMatch = path?.match(/^\/api\/upstream-channels\/([^/]+)\/groups\/sync$/)
+    const watchMatch = path?.match(/^\/api\/upstream-channels\/([^/]+)\/watch$/)
     const fundingMatch = path?.match(/^\/api\/upstream-channels\/([^/]+)\/funding\/(options|redeem|quote|pay|status)$/)
-    const channelRoute = path === '/api/upstream-channels' || Boolean(authMatch || balanceMatch || groupsMatch || fundingMatch)
+    const channelRoute = path === '/api/upstream-channels' || Boolean(authMatch || balanceMatch || groupsMatch || fundingMatch || watchMatch)
     const probeTokenRoute = path === '/api/probe-tokens'
     const probeCreateRoute = path === '/api/probe-tokens/create'
     const probeDeleteRoute = path?.match(/^\/api\/probe-tokens\/([^/]+)\/([^/]+)\/delete$/)
@@ -356,13 +380,14 @@ export function monitorAPI({ channelStore = null, secondaryStore = null, setting
     const probeTokenToggle = path?.match(/^\/api\/probe-tokens\/([^/]+)\/([^/]+)$/)
     const secondaryRoute = path === '/api/secondary-sites' || path?.startsWith('/api/secondary-sites/')
     const settingsRoute = path === '/api/settings'
+    const qqRoute = path === '/api/qq-bot' || path === '/api/qq-bot/test'
     const logsRoute = path === '/api/logs'
     const gatewayRoute = path === '/api/user-gateways' || Boolean(path?.startsWith('/api/user-gateways/'))
-    if (!gatewayRoute && !logsRoute && !settingsRoute && !secondaryRoute && !channelRoute && !probeTokenRoute && !probeCreateRoute && !probeDeleteRoute && !probeBatchRoute && !probeModelsRoute && !probeRevalidateRoute && !probeTokenToggle) return next()
+    if (!qqRoute && !gatewayRoute && !logsRoute && !settingsRoute && !secondaryRoute && !channelRoute && !probeTokenRoute && !probeCreateRoute && !probeDeleteRoute && !probeBatchRoute && !probeModelsRoute && !probeRevalidateRoute && !probeTokenToggle) return next()
     let authorized = false, audit
-    const channelId = (authMatch || balanceMatch || groupsMatch || fundingMatch || probeModelsRoute || probeRevalidateRoute || probeTokenToggle || probeDeleteRoute)?.[1]
+    const channelId = (authMatch || balanceMatch || groupsMatch || fundingMatch || watchMatch || probeModelsRoute || probeRevalidateRoute || probeTokenToggle || probeDeleteRoute)?.[1]
     const siteId = secondaryRoute ? path.split('/')[3] : undefined
-    const action = settingsRoute ? '保存系统设置' : groupsMatch ? '手动同步上游分组' : balanceMatch ? '手动刷新余额' : authMatch ? '手动检查授权'
+    const action = qqRoute ? (path.endsWith('/test') ? '发送 QQ 测试消息' : '保存 QQ 机器人') : settingsRoute ? '保存系统设置' : groupsMatch ? '手动同步上游分组' : balanceMatch ? '手动刷新余额' : authMatch ? '手动检查授权'
       : fundingMatch ? ({ redeem: '兑换码提交', pay: '创建充值订单', quote: '查询充值报价', status: '核对充值订单' })[fundingMatch[2]]
       : probeCreateRoute ? '创建上游令牌' : probeDeleteRoute ? '删除上游令牌'
         : probeBatchRoute ? path.endsWith('batch-enable') ? '批量启用探测' : '批量停止探测'
@@ -371,7 +396,7 @@ export function monitorAPI({ channelStore = null, secondaryStore = null, setting
             : path.endsWith('/discovery') ? '启动线路识别' : path.endsWith('/sync') ? '手动同步调度站点' : '保存调度站点'
             : gatewayRoute ? path.endsWith('/attribute') ? '主站线路归因' : path.endsWith('/keys') ? '添加主站下游密钥' : path.endsWith('/models') ? '同步主站下游模型' : path.endsWith('/check') ? '检查主站连接' : '保存主站连接'
             : '保存上游渠道'
-    audit = { category: gatewayRoute ? 'gateway' : settingsRoute ? 'settings' : fundingMatch ? 'funding' : probeCreateRoute || probeDeleteRoute || probeBatchRoute || probeModelsRoute || probeRevalidateRoute || probeTokenToggle ? 'probes' : secondaryRoute ? path.endsWith('/discovery') ? 'discovery' : 'routing' : 'upstream',
+    audit = { category: gatewayRoute ? 'gateway' : qqRoute || settingsRoute ? 'settings' : fundingMatch ? 'funding' : probeCreateRoute || probeDeleteRoute || probeBatchRoute || probeModelsRoute || probeRevalidateRoute || probeTokenToggle ? 'probes' : secondaryRoute ? path.endsWith('/discovery') ? 'discovery' : 'routing' : 'upstream',
       action, channelId, channelName: channels.get(channelId)?.name, siteId, tokenId: (probeModelsRoute || probeRevalidateRoute || probeTokenToggle || probeDeleteRoute)?.[2] }
     const send = (status, data) => {
       if (authorized && req.method === 'POST' && !logsRoute) {
@@ -436,16 +461,30 @@ export function monitorAPI({ channelStore = null, secondaryStore = null, setting
         if (req.method !== 'GET') throw new SyncError('日志接口只支持读取。', 405)
         return send(200, logs.query(new URL(req.url, host.origin).searchParams))
       }
+      if (qqRoute) {
+        if (path.endsWith('/test')) {
+          if (req.method !== 'POST') throw new SyncError('该接口不支持此操作。', 405)
+          await readJSON(req, 4096)
+          return send(200, { qq: await qq.sendTest() })
+        }
+        if (req.method === 'GET') return send(200, { qq: qq.view() })
+        if (req.method !== 'POST') throw new SyncError('该接口不支持此操作。', 405)
+        const input = await readJSON(req, 4096)
+        const saved = await qq.save(input)
+        audit.details = { enabled: saved.enabled }
+        return send(200, { qq: saved })
+      }
       if (settingsRoute) {
         if (req.method === 'GET') return send(200, settingsView())
         if (req.method !== 'POST') throw new SyncError('该接口不支持此操作。', 405)
         const input = await readJSON(req, 4096)
-        if (!isRecord(input) || !validBalanceThreshold(input.lowBalanceThreshold)) throw new SyncError('最低余额阈值须为 0 至 1,000,000 美元，最多两位小数。')
         if (!settingsStore) throw new SyncError('设置存储尚未配置。', 503)
-        const updated = { lowBalanceThreshold: input.lowBalanceThreshold }
+        const updated = applySettings(settings, input)
         try { settingsStore.save([updated]) }
         catch { throw new SyncError('设置保存失败，原阈值未改变，请检查存储后重试。', 500) }
-        audit.details = { lowBalanceThreshold: updated.lowBalanceThreshold }
+        audit.details = { lowBalanceThreshold: updated.lowBalanceThreshold, rateChangeMinPercent: updated.rateChangeMinPercent,
+          subscriptionDailyRemainingPercent: updated.subscriptionDailyRemainingPercent, subscriptionWeeklyRemainingPercent: updated.subscriptionWeeklyRemainingPercent,
+          subscriptionMonthlyRemainingPercent: updated.subscriptionMonthlyRemainingPercent, subscriptionExpiryDays: updated.subscriptionExpiryDays }
         settings = updated
         return send(200, settingsView())
       }
@@ -457,6 +496,29 @@ export function monitorAPI({ channelStore = null, secondaryStore = null, setting
           if (req.method !== (action === 'options' ? 'GET' : 'POST')) throw new SyncError('该接口不支持此操作。', 405)
           const result = await funding(fundingMatch[1], action, action === 'options' ? {} : await readJSON(req, 4096))
           return send(200, { ...result, channels: publicChannels() })
+        }
+        if (watchMatch) {
+          if (req.method !== 'POST') throw new SyncError('该接口不支持此操作。', 405)
+          const input = await readJSON(req, 4096)
+          if (!isRecord(input) || typeof input.ignoreAnnouncements !== 'boolean') throw new SyncError('公告开关无效。')
+          const id = watchMatch[1]
+          await auth.exclusive(id, async () => {
+            const channel = channels.get(id)
+            if (!channel || channel.routingSource) throw new SyncError('上游渠道不存在。', 404)
+            const previous = channel.ignoreAnnouncements === true
+            channel.ignoreAnnouncements = input.ignoreAnnouncements
+            if (input.ignoreAnnouncements && channel.upstreamWatch) channel.upstreamWatch = { ...channel.upstreamWatch, announcementAlerts: [] }
+            try {
+              if (channelStore.saveChannels) channelStore.saveChannels([channel])
+              else channelStore.save([...channels.values()])
+            } catch {
+              channel.ignoreAnnouncements = previous
+              throw new SyncError('公告开关尚未保存，请检查磁盘后重试。', 500)
+            }
+          })
+          audit.action = input.ignoreAnnouncements ? '静默上游公告' : '恢复上游公告'
+          audit.details = { ignoreAnnouncements: input.ignoreAnnouncements }
+          return send(200, { channels: publicChannels() })
         }
         if (authMatch || balanceMatch || groupsMatch) {
           if (req.method !== 'POST') throw new SyncError('该接口不支持此操作。', 405)
@@ -680,20 +742,24 @@ export function monitorAPI({ channelStore = null, secondaryStore = null, setting
       ...(error instanceof SyncError && error.code ? { code: error.code } : {}) }) }
   }
   middleware.logs = logs
-  middleware.closeStores = () => { logs.flush(); channelStore?.close?.(); secondaryStore?.close?.(); settingsStore?.close?.() }
+  middleware.closeStores = () => { logs.flush(); channelStore?.close?.(); secondaryStore?.close?.(); settingsStore?.close?.(); qqStore?.close?.() }
   middleware.auth = auth
   middleware.discovery = discovery
   middleware.routing = secondarySites.automation
+  middleware.qq = qq
   middleware.probes = {
     runDue: runProbes,
-    start() { if (!probeTimer) { probesStopped = false; probeTimer = setInterval(() => { void runProbes() }, 1000); probeTimer.unref(); void runProbes() } },
-    async stop() { probesStopped = true; clearInterval(probeTimer); probeTimer = null; for (const controller of probeControllers.values()) controller.abort(); await Promise.allSettled([...probeTasks.values()]) },
+    start() {
+      if (!probeTimer) { probesStopped = false; probeTimer = setInterval(() => { void runProbes() }, 1000); probeTimer.unref(); void runProbes() }
+      qq.start()
+    },
+    async stop() { probesStopped = true; clearInterval(probeTimer); probeTimer = null; qq.stop(); for (const controller of probeControllers.values()) controller.abort(); await Promise.allSettled([...probeTasks.values()]) },
   }
   return middleware
 }
 
 export function monitorPlugin() {
-  const middleware = monitorAPI({ channelStore: createChannelStore(), secondaryStore: createSecondarySiteStore(), settingsStore: createConsoleSettingsStore(), gatewayStore: createUserGatewayStore() })
+  const middleware = monitorAPI({ channelStore: createChannelStore(), secondaryStore: createSecondarySiteStore(), settingsStore: createConsoleSettingsStore(), gatewayStore: createUserGatewayStore(), qqStore: createQQBotStore() })
   return { name: 'signal-monitor',
     configureServer(server) { server.middlewares.use(middleware); middleware.auth.start(); middleware.probes.start() },
     configurePreviewServer(server) {

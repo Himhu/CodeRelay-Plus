@@ -61,6 +61,7 @@ test('a manual balance check does not defer a short-lived session renewal', asyn
       refreshes++
       return res.end(JSON.stringify({ code: 0, data: { access_token: 'new-secret', refresh_token: 'new-refresh-secret', expires_in: 20 } }))
     }
+    if (req.url === '/api/v1/announcements' || req.url === '/api/v1/subscriptions/progress') return res.end(JSON.stringify({ code: 0, data: [] }))
     assert.equal(req.url, '/api/v1/auth/me')
     res.end(JSON.stringify({ code: 0, data: { id: 1, balance: 2 } }))
   })
@@ -114,6 +115,8 @@ test('balance checks persist, renew Sub2API sessions and preserve snapshots thro
       refreshes++
       return send(200, { code: 0, data: { access_token: 'rotated-secret', refresh_token: 'next-refresh-secret', expires_in: 3600 } })
     }
+    if (req.url === '/sub/api/v1/announcements' || req.url === '/sub/api/v1/subscriptions/progress') return send(200, { code: 0, data: [] })
+    if (req.url === '/new/api/notice') return send(200, { success: true, data: '' })
     assert.equal(req.url, '/sub/api/v1/auth/me')
     assert.equal(req.headers.authorization, 'Bearer rotated-secret')
     assert.equal(disk.load().find(c => c.id === 'sub').token, 'rotated-secret')

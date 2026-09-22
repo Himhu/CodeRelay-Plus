@@ -10,6 +10,7 @@ import ProbeMonitor from './probe-monitor.jsx';
 import LogCenter from './log-center.jsx';
 import MobileNavigation from './mobile-navigation.jsx';
 import { BalanceNotice, ConsoleSettings, useConsoleSettings } from './balance-notices.jsx';
+import QQBot from './qq-bot.jsx';
 import { cachedDataLabel, readViewCache, writeViewCache, viewCacheGeneration } from './view-cache.js';
 import {probeResultLabel} from './probe-records-data.js';
 import { channelFilters, channelSorts, channelTableView } from './channel-table-data.js';
@@ -18,6 +19,7 @@ import '@fontsource/dm-mono';
 import { Pulse, Check, CaretRight, Eye, EyeSlash, Key, Lightning, MagnifyingGlass, Pause, Play, PlugsConnected, Plus, Trash, X, PencilSimple } from '@phosphor-icons/react';import './styles.css';
 import './mobile.css';
 import './channel-table.css';
+import './design-system.css';
 const probeProtocolLabels = {gemini:'Gemini 原生',chat:'Chat Completions',responses:'Responses',messages:'Anthropic Messages',embeddings:'Embeddings',unsupported:'暂不支持'}
 const modelProtocolLabel = model => probeProtocolLabels[model.protocol] || '兼容协议'
 function modelIdentity(id){
@@ -51,7 +53,7 @@ async function requestChannels(body, signal, path = '/api/upstream-channels') {
 function currentPage() {
   const raw = window.location.hash.slice(1).split('?')[0]
   const page = raw === 'alerts' ? 'logs' : raw === 'integrations' ? 'overview' : raw
-  return ['overview', 'secondary-channels', ...routePages, 'probe-tokens', 'logs', 'probes', 'settings'].includes(page) ? page : 'overview'
+  return ['overview', 'secondary-channels', ...routePages, 'probe-tokens', 'logs', 'probes', 'qq-bot', 'settings'].includes(page) ? page : 'overview'
 }
 
 function subscribeToPage(onChange) {
@@ -69,7 +71,7 @@ function Sidebar({active,setActive}) {
     <div className="sidebar-bottom"><p className="sidebar-workflow">接入上游 → 自动探测 → 稳定线路推送</p><a href="#logs">查看运行日志</a></div>
   </aside></>
 }
-function Topbar({active,onProbe}){let titles={overview:['总览','实时掌握所有上游渠道的运行状态'],'secondary-channels':['调度站点','Sub2API 分组与账号'],'route-bindings':['线路管理','调度站点分组 → 账号 → 上游令牌'],'route-accounts':['线路管理','调度站点账号 → 上游令牌'],'route-discovery':['线路管理','上游线路 · 倍率比较'],'route-automation':['线路管理','自动探测、异常隔离与恢复'],'probe-tokens':['探针监控','模型状态与令牌管理'],logs:['日志中心','调度操作、同步结果与模型探测记录'],probes:['探针监控','模型状态与令牌管理'],settings:['设置','监控策略与通知偏好'],integrations:['集成','连接你的上游站点']};let[t,sub]=titles[active]||titles.overview;return <header className="topbar"><div><div className="crumb"><span>CONTROL ROOM</span><CaretRight size={12}/><b>{t.toUpperCase()}</b></div><h1>{t}</h1><p>{sub}</p></div><div className="top-actions"><ConsoleAccount/>{active==='overview'&&<button className="probe-button" onClick={onProbe}><Lightning weight="fill" size={16}/>查看探针</button>}</div></header>}
+function Topbar({active,onProbe}){let titles={overview:['总览','实时掌握所有上游渠道的运行状态'],'secondary-channels':['调度站点','Sub2API 分组与账号'],'route-bindings':['线路管理','调度站点分组 → 账号 → 上游令牌'],'route-accounts':['线路管理','调度站点账号 → 上游令牌'],'route-discovery':['线路管理','上游线路 · 倍率比较'],'route-automation':['线路管理','自动探测、异常隔离与恢复'],'probe-tokens':['探针监控','模型状态与令牌管理'],logs:['日志中心','调度操作、同步结果与模型探测记录'],probes:['探针监控','模型状态与令牌管理'],'qq-bot':['QQ 机器人','余额、线路暂停和探针失败发到 QQ 群'],settings:['设置','监控策略与通知偏好'],integrations:['集成','连接你的上游站点']};let[t,sub]=titles[active]||titles.overview;return <header className="topbar"><div><div className="crumb"><span>CONTROL ROOM</span><CaretRight size={12}/><b>{t.toUpperCase()}</b></div><h1>{t}</h1><p>{sub}</p></div><div className="top-actions"><ConsoleAccount/>{active==='overview'&&<button className="probe-button" onClick={onProbe}><Lightning weight="fill" size={16}/>查看探针</button>}</div></header>}
 const authLabels = { missing: '未授权', configured: '令牌已保存', unchecked: '待验证', checking: '验证中',
   refreshing: '续期中', authorized: '已登录', expired: '需要重新授权', error: '暂时无法确认', 'storage-error': '授权保存失败' }
 
@@ -121,6 +123,32 @@ function ChannelBalance({channel,onCheck,busy}) {
   </div>
 }
 
+function OverviewPulse({channels, notices}) {
+  const usd = channel => {
+    const balance = channel.balance
+    if (balance?.status !== 'ok') return null
+    if (Number.isFinite(balance.usdAmount)) return balance.usdAmount
+    return balance.currency === 'USD' && Number.isFinite(balance.amount) ? balance.amount : null
+  }
+  const rates = channels.map(channel => channel.probeSummary?.history?.rate).filter(rate => Number.isFinite(rate))
+  const health = rates.length ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length : null
+  const healthy = channels.filter(channel => channel.status === 'healthy').length
+  const trouble = channels.filter(channel => ['down', 'paused', 'degraded'].includes(channel.status))
+  const passed = channels.reduce((sum, channel) => sum + (channel.probeSummary?.counts?.ok || 0), 0)
+  const failed = channels.reduce((sum, channel) => sum + (channel.probeSummary?.counts?.error || 0), 0)
+  const amounts = channels.map(usd).filter(amount => amount != null)
+  const low = notices?.balanceNotices?.low ?? []
+  const alerts = trouble.slice(0, 3).map(channel => ({ id: channel.id, text: `${channel.name}：${channel.status === 'down' ? '探测全部失败' : channel.status === 'paused' ? '已暂停' : '部分模型异常'}`, href: `#probes?channel=${encodeURIComponent(channel.id)}`, action: '查看探针' }))
+  return <section className="noc" aria-label="态势摘要">
+    <div className="noc-kpis">
+      <article><span>业务线路健康度</span><strong>{health == null ? '—' : `${health.toFixed(1)}%`}</strong><small>通过 {passed} 个模型 · 异常 {failed} 个模型</small></article>
+      <article><span>渠道状态</span><strong>{healthy} 条正常{trouble.length ? ` / ${trouble.length} 条需处理` : ''}</strong><small>共 {channels.length} 个上游</small></article>
+      <article><span>折算余额</span><strong>{amounts.length ? `$${amounts.reduce((sum, amount) => sum + amount, 0).toFixed(2)}` : '—'}</strong><small>{low.length ? `${low.length} 个渠道低于预警` : '没有低余额预警'}</small></article>
+    </div>
+    {alerts.length > 0 && <ul className="noc-alerts">{alerts.map(item => <li key={item.id}><span>{item.text}</span><a href={item.href}>{item.action}</a></li>)}</ul>}
+  </section>
+}
+
 function Table({data,view,onInspect,onToggle,onAdd,onEdit,onCheckAuth,onCheckBalance,onAuthorize,authBusy=[],title='上游渠道状态',description,addLabel='添加渠道'}) {
   const panel = useRef(null)
   const { filter, query, sort, pageSize, counts, total, pages, page, start, rows } = useMemo(() => channelTableView(data, new URLSearchParams(view)), [data, view])
@@ -145,7 +173,7 @@ function Table({data,view,onInspect,onToggle,onAdd,onEdit,onCheckAuth,onCheckBal
       {(filter !== 'all' || query) && <button type="button" className="channel-reset" onClick={()=>changeView({status:null,q:null})}>清除筛选</button>}
     </div>
     <div className="channel-list-controls">
-      <label className="search-field"><MagnifyingGlass size={16}/><input type="search" aria-label="搜索渠道、模型或地址" placeholder="搜索渠道或模型" value={query} onChange={event=>changeView({q:event.target.value})}/></label>
+      <label className="search-field"><MagnifyingGlass size={16}/><input type="search" aria-label="搜索渠道、模型或 URL" placeholder="搜索渠道、模型或 URL" value={query} onChange={event=>changeView({q:event.target.value})}/></label>
       <label>排序<select aria-label="渠道排序" value={sort} onChange={event=>changeView({sort:event.target.value})}>{channelSorts.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
 
     </div>
@@ -381,7 +409,7 @@ function App(){
   }
   let[selected,setSelected]=useState(null),[addOpen,setAddOpen]=useState(null),[toast,setToast]=useState('');let notify=m=>{setToast(m);setTimeout(()=>setToast(''),2200)};let probe=()=>setActive('probes');let toggle=channelId=>setActive(`probes?${new URLSearchParams({channel:channelId})}`);return <div className="app-shell"><Sidebar active={active} setActive={setActive}/><main className="main"><Topbar active={active} onProbe={probe}/><BalanceNotice state={consoleSettings} onFundingChanged={()=>setChannelReload(value=>value+1)}/>{['probe-tokens','probes'].includes(active)?<ProbeMonitor key={pageParams.get('channel')||'all'} channelId={pageParams.get('channel')} channelName={data.find(channel=>channel.id===pageParams.get('channel'))?.name} onClearChannel={()=>setActive(active)} tokenTab={active==='probe-tokens'} onTabChange={tokens=>setActive(`${tokens?'probe-tokens':'probes'}${pageParams.get('channel')?`?${new URLSearchParams({channel:pageParams.get('channel')})}`:''}`)} TokensView={ProbeTokens} identifyModel={modelIdentity} protocolLabel={modelProtocolLabel}/>:active==='overview'?<><div className="page-actions"><span className="refresh-status"><span className="refresh-dot"/>渠道与探针汇总每 30 秒刷新</span></div>{cachedAt && <p className="cached-data-note">{cachedDataLabel(cachedAt)}</p>}{channelsLoading ? <p className="site-message" role="status">正在读取上游渠道…</p>
       : <>{channelsError && <div className="site-error" role="alert">{channelsError}<button onClick={()=>setChannelReload(value=>value+1)}>重试</button></div>}
-      {(!channelsError || data.length>0) && <><Table data={data} view={location.split('?')[1] || ''} description={`${data.length} 个已保存渠道 · 余额与授权状态每 30 秒刷新显示`} onInspect={inspect} onToggle={toggle} onAdd={()=>setAddOpen({})} onEdit={channel=>setAddOpen({...channel,edit:true,provider:channel.provider==='Sub2API'?'sub2api':'newapi'})} authBusy={authBusy} onCheckAuth={checkAccount} onCheckBalance={channel=>checkAccount(channel,'balance')} onAuthorize={channel=>setAddOpen({...channel,provider:channel.provider==='Sub2API'?'sub2api':'newapi'})}/><p className="site-session-note">账户余额约每 5 分钟自动查询，也可手动刷新；关闭浏览器后，本地服务继续查询并为 Sub2API 自动续期。余额仅代表账户钱包，不含订阅套餐额度；查询失败会保留并标记上次结果。</p></>}</>}</>:active==='logs'?<LogCenter siteId={pageParams.get('site')||''} channelId={pageParams.get('channel')||''}/>:active==='settings'?<ConsoleSettings state={consoleSettings}/>:active==='secondary-channels'||routePages.includes(active)?<SecondarySites SecretField={SecretField} page={active} siteId={pageParams.get('site')} groupId={pageParams.get('group')}/>:null}</main>{selected&&data.some(channel=>channel.id===selected)&&<ChannelDetail key={selected} channel={data.find(channel=>channel.id===selected)} onClose={()=>setSelected(null)} onRefresh={()=>checkAccount(data.find(channel=>channel.id===selected),'groups')} busy={authBusy.includes(selected)} error={detailError?.id===selected?detailError.message:''}/>} {addOpen&&<AddModal key={addOpen.id||'new'} initial={addOpen} onClose={()=>setAddOpen(null)} onSave={saveChannel}/>} {toast&&<div className="toast"><Check size={16} weight="bold"/>{toast}</div>} </div>
+      {(!channelsError || data.length>0) && <><OverviewPulse channels={data} notices={consoleSettings.data}/><Table data={data} view={location.split('?')[1] || ''} description={`${data.length} 个已保存渠道 · 余额与授权状态每 30 秒刷新显示`} onInspect={inspect} onToggle={toggle} onAdd={()=>setAddOpen({})} onEdit={channel=>setAddOpen({...channel,edit:true,provider:channel.provider==='Sub2API'?'sub2api':'newapi'})} authBusy={authBusy} onCheckAuth={checkAccount} onCheckBalance={channel=>checkAccount(channel,'balance')} onAuthorize={channel=>setAddOpen({...channel,provider:channel.provider==='Sub2API'?'sub2api':'newapi'})}/><p className="site-session-note">账户余额约每 5 分钟自动查询，也可手动刷新；关闭浏览器后，本地服务继续查询并为 Sub2API 自动续期。余额仅代表账户钱包，不含订阅套餐额度；订阅余量在渠道详情里单独显示。查询失败会保留并标记上次结果。</p></>}</>}</>:active==='logs'?<LogCenter siteId={pageParams.get('site')||''} channelId={pageParams.get('channel')||''}/>:active==='qq-bot'?<QQBot/>:active==='settings'?<ConsoleSettings state={consoleSettings}/>:active==='secondary-channels'||routePages.includes(active)?<SecondarySites SecretField={SecretField} page={active} siteId={pageParams.get('site')} groupId={pageParams.get('group')}/>:null}</main>{selected&&data.some(channel=>channel.id===selected)&&<ChannelDetail key={selected} channel={data.find(channel=>channel.id===selected)} onClose={()=>setSelected(null)} onRefresh={()=>checkAccount(data.find(channel=>channel.id===selected),'groups')} busy={authBusy.includes(selected)} error={detailError?.id===selected?detailError.message:''} onChannels={channels=>acceptChannels(channels.map(channel=>({...channel,provider:channel.provider==='newapi'?'NewAPI':'Sub2API',accent:channel.provider==='newapi'?'cyan':'violet',status:channel.probeSummary?.status||channel.status||'unknown'})))}/>} {addOpen&&<AddModal key={addOpen.id||'new'} initial={addOpen} onClose={()=>setAddOpen(null)} onSave={saveChannel}/>} {toast&&<div className="toast"><Check size={16} weight="bold"/>{toast}</div>} </div>
 }
 
 import {createRoot} from 'react-dom/client';

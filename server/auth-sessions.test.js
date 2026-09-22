@@ -53,6 +53,7 @@ test('Sub2API sessions use normal CAPTCHA validation, rotate durably, recover an
       version++
       return send(200, { code: 0, data: tokens() })
     }
+    if (req.url === '/api/v1/announcements' || req.url === '/api/v1/subscriptions/progress') return send(200, { code: 0, data: [] })
     assert.equal(req.url, '/api/v1/auth/me')
     assert.equal(req.method, 'GET')
     assert.equal(body, null)

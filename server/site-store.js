@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { sqliteStore } from './sqlite-store.js'
 import { validBalanceThreshold } from './console-settings.js'
+import { validQQConfig } from './qq-bot.js'
 
 export const defaultDataDirectory = process.env.SIGNAL_DATA_DIR || join(homedir(), 'Library', 'Application Support', 'Signal Monitor')
 
@@ -18,6 +19,10 @@ export function createChannelStore(directory = defaultDataDirectory) {
 
 export function createConsoleSettingsStore(directory = defaultDataDirectory) {
   return databaseStore(directory, 'settings', 'console-settings.enc.json', '设置', settings => validBalanceThreshold(settings?.lowBalanceThreshold))
+}
+
+export function createQQBotStore(directory = defaultDataDirectory) {
+  return databaseStore(directory, 'qq-bot', 'qq-bot.enc.json', 'QQ 机器人', validQQConfig)
 }
 
 // The site end users actually call (NewAPI main site). Kept in its own scope so

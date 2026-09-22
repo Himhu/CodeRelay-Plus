@@ -2,6 +2,8 @@ import { SyncError, isRecord, textValue, upstream } from './upstream-client.js'
 import { accountSite as authSite, sub2APIBalance, readNewAPIBalance, saveBalance, failBalance } from './channel-balance.js'
 import { readUserGroups } from './user-groups.js'
 import { readUserAPIKeys, usableAPIKey } from './user-api-keys.js'
+import { normalizeSettings } from './console-settings.js'
+import { syncUpstreamWatch } from './upstream-watch.js'
 
 export function setTokens(site, tokens, now = Date.now()) {
   if (!textValue(tokens?.access_token) || /\s/.test(tokens.access_token)) throw new SyncError('上游站点没有返回有效的用户访问令牌。', 502)
@@ -41,7 +43,7 @@ export function channelAuthView(channel, now = Date.now()) {
     autoRefresh: channel.provider === 'sub2api' && Boolean(channel.refreshToken) }
 }
 
-export function createChannelAuth({ channels, store, now = Date.now, logs }) {
+export function createChannelAuth({ channels, store, now = Date.now, logs, watchSettings = () => normalizeSettings() }) {
   const busy = new Set()
   const tasks = new Set()
   const locks = new Map()
@@ -222,6 +224,9 @@ export function createChannelAuth({ channels, store, now = Date.now, logs }) {
       if (groups.status === 'rejected') throw groups.reason
       channel.userGroups = { groups: groups.value, status: 'ok', updatedAt: new Date(now()).toISOString(), error: null }
       if (!channel.probeTokensError) channel.probeTokensNextSyncAt = new Date(now() + 300000).toISOString()
+      const watch = await syncUpstreamWatch(channel, groups.value, now(), watchSettings())
+      if (watch.rateAlert) logs?.record({ category: 'upstream', channelId: channel.id, channelName: channel.name, level: 'warning', action: '倍率变化', message: watch.rateAlert.text })
+      for (const alert of watch.newAnnouncements) logs?.record({ category: 'upstream', channelId: channel.id, channelName: channel.name, level: 'info', action: '上游公告', message: alert.text })
     } catch (error) {
       channel.userGroups = { ...channel.userGroups, status: 'error',
         error: error instanceof SyncError ? error.message : '线路倍率查询失败，请稍后重试。' }

@@ -40,6 +40,7 @@ test('group synchronization and funding reads wait for an active probe without l
       items: [{ id: 1, name: 'key', group_id: 1, key: 'test-key', status: 'active' }] } })
     if (req.url === '/api/v1/payment/config') return send({ code: 0, data: { enabled: false } })
     if (req.url === '/api/v1/settings/public') return send({ code: 0, data: {} })
+    if (req.url === '/api/v1/announcements' || req.url === '/api/v1/subscriptions/progress') return send({ code: 0, data: [] })
     assert.fail(`Unexpected endpoint ${req.url}`)
   })
   upstream.listen(0, '127.0.0.1'); await once(upstream, 'listening')

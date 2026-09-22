@@ -198,5 +198,6 @@ export function createSecondarySitesAPI({ store, channels = new Map(), channelSt
     throw new SyncError('调度站点接口不存在或不支持此操作。', 404)
   }
   handler.automation = automation
+  handler.snapshot = () => [...sites.values()]
   return handler
 }

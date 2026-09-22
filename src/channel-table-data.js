@@ -14,6 +14,28 @@ const finite = value => typeof value === 'number' && Number.isFinite(value) ? va
 const date = value => finite(Date.parse(value))
 const matchesStatus = (channel, selected) => selected === 'all' || channel.status === selected ||
   selected === 'pending' && !['healthy', 'degraded', 'down', 'disabled'].includes(channel.status)
+const addressKey = value => {
+  const raw = String(value || '').trim()
+  const candidate = /^https?:\/\//i.test(raw) ? raw : /[./]/.test(raw) ? `https://${raw}` : ''
+  if (!candidate) return null
+  try {
+    const url = new URL(candidate)
+    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname.includes('.')) return null
+    return { host: url.hostname.replace(/^www\./, '').toLowerCase(), path: url.pathname.replace(/\/+$/, '').replace(/\/(?:api\/v1|api|v1)$/i, '').toLowerCase() }
+  } catch { return null }
+}
+const sameAddress = (endpoint, query) => {
+  const left = addressKey(endpoint), right = addressKey(query)
+  if (!left || !right || left.host !== right.host) return false
+  if (!left.path || !right.path) return true
+  return left.path === right.path || left.path.startsWith(`${right.path}/`) || right.path.startsWith(`${left.path}/`)
+}
+const matchesQuery = (channel, query) => {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return true
+  const text = `${channel.name} ${channel.provider} ${channel.endpoint || ''} ${(channel.probeSummary?.modelNames || []).join(' ')}`.toLowerCase()
+  return text.includes(needle) || sameAddress(channel.endpoint, query)
+}
 const values = {
   created: channel => date(channel.createdAt),
   name: channel => channel.name || '',
@@ -33,8 +55,7 @@ export function channelTableView(data, params) {
   const [field, direction] = sort.split('-'), readValue = values[field]
   const counts = Object.fromEntries(channelFilters.map(([id]) => [id, data.filter(channel => matchesStatus(channel, id)).length]))
   // Filter and sort the full summary snapshot before slicing; never sort only a page.
-  const list = data.filter(channel => matchesStatus(channel, filter) &&
-    `${channel.name} ${channel.provider} ${channel.endpoint || ''} ${(channel.probeSummary?.modelNames || []).join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()))
+  const list = data.filter(channel => matchesStatus(channel, filter) && matchesQuery(channel, query))
   list.sort((a, b) => {
     const left = readValue(a), right = readValue(b)
     if (left == null || right == null) return left == null && right == null ? 0 : left == null ? 1 : -1

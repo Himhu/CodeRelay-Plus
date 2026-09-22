@@ -99,7 +99,9 @@ test('API discovery scans every upstream route, never creates user tokens and on
     }
     if (path.endsWith('/api/token/51/key')) return wrap({ key: 'sk-new-created-secret' })
     if (path.endsWith('/v1/models')) { assert.equal(req.method, 'GET'); modelReads++; return send({ data: [{ id: 'gpt-5', owned_by: 'openai' }] }) }
-    paidRequests++; res.writeHead(500); res.end('{}')
+    if (path.endsWith('/api/v1/announcements') || path.endsWith('/api/v1/subscriptions/progress')) return wrap([])
+    if (path.endsWith('/api/notice')) return wrap('')
+        paidRequests++; res.writeHead(500); res.end('{}')
   })
   upstream.listen(0, '127.0.0.1'); await once(upstream, 'listening'); t.after(() => upstream.close())
   const remote = `http://127.0.0.1:${upstream.address().port}`, at = new Date().toISOString()

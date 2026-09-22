@@ -11,7 +11,7 @@ const actors = { user: '人工操作', system: '后台任务', legacy: '历史�
 const detailLabels = { before: '修改前', after: '修改后', modelsBefore: '原模型名单', modelsAfter: '当前模型名单', addedModels: '新增模型', removedModels: '移除模型',
   availableModels: '验证通过的模型', retainedModels: '观察期保留模型', modelResults: '决策时的模型结果', excludedModels: '异常模型', state: '当前状态', previousState: '此前状态', reason: '原因', httpStatus: 'HTTP 状态', latencyMs: '延迟（ms）',
   enabled: '是否启用', groupId: '分组 ID', count: '总数', succeeded: '完成数量', failed: '失败数量', unchanged: '未修改数量', status: '结果', orderId: '订单 ID', requestId: '提交 ID',
-  rechargeRate: '充值倍率', lowBalanceThreshold: '最低余额阈值', imported: '迁入历史', error: '错误' }
+  rechargeRate: '充值倍率', lowBalanceThreshold: '最低余额阈值', rateChangeMinPercent: '倍率变化百分比', subscriptionDailyRemainingPercent: '订阅日剩余', subscriptionWeeklyRemainingPercent: '订阅周剩余', subscriptionMonthlyRemainingPercent: '订阅月剩余', subscriptionExpiryDays: '订阅到期天数', ignoreAnnouncements: '静默公告', imported: '迁入历史', error: '错误' }
 const states = { healthy: '正常调度', observing: '短暂异常观察', cooldown: '冷却 / 已暂停', recovering: '恢复验证', manual: '保留手动状态', waiting: '等待探针', verifying: '等待验证',
   ok: '通过', error: '失败', unknown: '结果待确认', complete: '完成', partial: '部分完成', success: '成功', rejected: '上游拒绝' }
 const time = value => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—'

@@ -39,7 +39,7 @@ export default function RouteAutomation({ site, initialGroupId, onChange }) {
       <button type="button" aria-pressed={state.freeze === true} title="立刻停止自动写入" disabled={busy} onClick={() => save({ freeze: state.freeze !== true })}>紧急冻结</button>
       <button type="button" aria-pressed={state.approve === true} title="每轮写入前需要手动批准" disabled={busy} onClick={() => save({ approve: state.approve !== true })}>写入审批</button>
       <button type="button" aria-pressed={state.ownedOnly === true} title="不修改不是本站创建的调度账号" disabled={busy} onClick={() => save({ ownedOnly: state.ownedOnly !== true })}>只改本站账号</button>
-      <label className="ra-rank">排序<select aria-label="调度排序" value={state.rank || 'keep'} disabled={busy} onChange={event => save({ rank: event.target.value })}><option value="keep">保持优先级</option><option value="price">价格优先</option><option value="speed">速度优先</option></select></label>
+      <label className="ra-rank">排序<select aria-label="调度排序" value={state.rank || 'keep'} disabled={busy} onChange={event => save({ rank: event.target.value })}><option value="keep">保持优先级</option><option value="price">价格优先</option><option value="speed">速度优先</option></select>{state.rank === 'speed' && <span className="ra-priority">101 最快</span>}{state.rank === 'price' && <span className="ra-priority">101 最低价</span>}</label>
       {state.approve === true && <button type="button" className="ra-approve" disabled={busy} onClick={() => save({ approveOnce: true })}>批准下一轮写入</button>}
     </div>
     <div className="ra-tools"><div className="ra-filters" role="group" aria-label="调度线路筛选">{filters.map(([id, title, rows]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{title}<span>{rows.length}</span></button>)}</div>

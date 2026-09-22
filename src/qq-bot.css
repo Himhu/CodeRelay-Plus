@@ -1,0 +1,8 @@
+.qq-bot input:not([type=checkbox]) { display:block; width:100%; margin:8px 0 16px; background:#0c141d; border:1px solid #344856; border-radius:7px; padding:10px 12px; color:#e8edf3; }
+.qq-bot input:focus-visible { outline:2px solid #35d2c1; outline-offset:2px; }
+.qq-bot .qq-check { display:flex; align-items:center; gap:8px; margin-top:4px; }
+.qq-bot .qq-check input { width:17px; height:17px; margin:0; accent-color:#35d2c1; }
+.qq-url { display:flex; align-items:center; gap:8px; }
+.qq-bot .qq-url input { min-width:0; margin:0; }
+.qq-url .outline-button { flex-shrink:0; min-height:40px; }
+@media (max-width:600px) { .qq-bot input, .qq-url .outline-button, .qq-bot .probe-button { min-height:44px; } }

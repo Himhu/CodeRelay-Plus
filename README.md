@@ -12,3 +12,5 @@ npm run dev
 ## 发布
 
 见 `deploy/README.md`。用 `deploy/build-release.mjs` 生成发布包，再在服务器上执行 `activate-release.sh`。不要使用 PM2 或 `vite preview`。
+
+功能说明见 `docs/功能介绍.zh-CN.md`。

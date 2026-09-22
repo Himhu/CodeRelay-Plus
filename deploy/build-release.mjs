@@ -14,9 +14,9 @@ execFileSync('npm', ['run', 'build', '--', '--outDir', join(release, 'dist')], {
   cwd: project, stdio: 'inherit', env: { ...process.env, SIGNAL_DATA_DIR: join(temporary, 'empty-data') },
 })
 const modules = [
-  'production.js', 'console-auth.js', 'monitor-api.js', 'secondary-sites.js', 'route-bindings.js', 'route-automation.js', 'route-discovery.js', 'site-store.js', 'upstream-client.js',
+  'production.js', 'console-auth.js', 'monitor-api.js', 'secondary-sites.js', 'route-bindings.js', 'route-automation.js', 'route-discovery.js', 'site-store.js', 'upstream-client.js', 'upstream-watch.js',
   'sub2api-auth.js', 'channel-balance.js', 'channel-funding.js', 'channel-probes.js', 'user-groups.js', 'user-api-keys.js', 'user-gateway.js',
-  'probe-request.js', 'console-settings.js', 'sqlite-store.js', 'probe-history.js', 'route-name.js', 'operation-logs.js',
+  'probe-request.js', 'console-settings.js', 'sqlite-store.js', 'probe-history.js', 'route-name.js', 'operation-logs.js', 'qq-bot.js',
 ]
 for (const name of modules) cpSync(join(project, 'server', name), join(release, 'server', name))
 writeFileSync(join(release, 'package.json'), JSON.stringify({ name: 'upstream-signal-console', private: true, type: 'module' }) + '\n')

@@ -46,7 +46,7 @@ test('mobile navigation, subsidiary, token controls and dialogs remain usable at
   await expect(page.locator('.sidebar')).toBeHidden()
   await page.getByRole('button', { name: '打开导航' }).click()
   let dialog = page.getByRole('dialog', { name: '导航', exact: true })
-  await expect(dialog.getByRole('button')).toHaveCount(7)
+  await expect(dialog.getByRole('button')).toHaveCount(8)
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).overflow)).toBe('hidden')
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)

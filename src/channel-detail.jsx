@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { requestJSON } from './console-fetch.js'
 import { Paginated } from './pagination.jsx'
 import { ArrowsClockwise, X } from '@phosphor-icons/react'
 
@@ -18,7 +19,45 @@ function APIKeyList({items, groups, provider}) {
   })}</ul>}</Paginated>
 }
 
-export default function ChannelDetail({ channel, onClose, onRefresh, busy, error }) {
+const rateText = value => value == null ? '自动' : `${value}×`
+function WatchSection({ channel, busy, onChanged }) {
+  const watch = channel.upstreamWatch || {}
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+  async function toggle(event) {
+    setPending(true); setError('')
+    try {
+      const payload = await requestJSON(`/api/upstream-channels/${channel.id}/watch`, { ignoreAnnouncements: event.target.checked })
+      if (!Array.isArray(payload.channels)) throw new Error('渠道数据格式无效，已保留上次结果。')
+      onChanged(payload.channels)
+    } catch (err) { setError(err.message) }
+    finally { setPending(false) }
+  }
+  return <section className="detail-section" aria-labelledby="upstream-watch-title">
+    <div className="detail-section-head"><h3 id="upstream-watch-title">倍率、公告和订阅</h3></div>
+    <p className="route-hint">跟随线路同步。首次只建立基线，之后的倍率变化和新公告才提醒。订阅额度不并入钱包余额。</p>
+    {watch.updatedAt && <p className="route-hint">更新：{new Date(watch.updatedAt).toLocaleString('zh-CN', { hour12: false })}</p>}
+    <h4>倍率变化</h4>
+    {watch.rateChanges?.length ? <ul className="route-key-list">{watch.rateChanges.map(entry => <li key={entry.at}>
+      <div><b>{new Date(entry.at).toLocaleString('zh-CN', { hour12: false })}</b>
+        {entry.added?.length > 0 && <span className="key-meta">新增 {entry.added.map(item => `${item.name} ${rateText(item.rate)}`).join('、')}</span>}
+        {entry.removed?.length > 0 && <span className="key-meta">删除 {entry.removed.map(item => `${item.name} ${rateText(item.rate)}`).join('、')}</span>}
+        {entry.changed?.length > 0 && <span className="key-meta">变化 {entry.changed.map(item => `${item.name} ${rateText(item.from)}→${rateText(item.to)}${item.percent == null ? '' : `（${item.percent}%）`}`).join('、')}</span>}
+      </div></li>)}</ul> : <p className="route-hint">还没有超过提醒阈值的倍率变化。</p>}
+    <h4>上游公告</h4>
+    <label className="auto-probe-option"><input type="checkbox" checked={watch.ignoreAnnouncements === true} disabled={busy || pending} onChange={toggle}/><span>不推送这个渠道的公告<small className="field-hint">仍然保存在这里，只是不再发 QQ。</small></span></label>
+    {watch.announcementsError && <p className="site-error" role="alert">{watch.announcementsError}</p>}
+    {watch.announcements?.length ? <ul className="route-key-list">{watch.announcements.map(item => <li key={item.id}><div><b>{item.title}</b>{item.at && <span className="key-meta">{item.at}</span>}<span className="key-meta">{item.content}</span></div></li>)}</ul> : <p className="route-hint">还没有公告。首次同步不会把旧公告当成新消息。</p>}
+    {channel.provider === 'Sub2API' && <><h4>订阅用量</h4>
+      {watch.subscriptionsError && <p className="site-error" role="alert">{watch.subscriptionsError}</p>}
+      {watch.subscriptions?.length ? <ul className="route-key-list">{watch.subscriptions.map(item => <li key={item.id}><div><b>{item.groupName}</b><span className="key-meta">{item.status}{item.expiresInDays == null ? '' : ` · 剩余 ${item.expiresInDays} 天`}</span>
+        {[['日', item.daily], ['周', item.weekly], ['月', item.monthly]].filter(([, value]) => value).map(([label, value]) => <span className="key-meta" key={label}>{label}剩余 {value.remainingPercent}%（${value.remaining} / ${value.limit}）</span>)}
+      </div></li>)}</ul> : <p className="route-hint">没有读到订阅用量。钱包余额仍按原来的方式显示。</p>}</>}
+    {error && <p className="site-error" role="alert">{error}</p>}
+  </section>
+}
+
+export default function ChannelDetail({ channel, onClose, onRefresh, busy, error, onChannels }) {
   const dialog = useRef(null)
   const snapshot = channel.userGroups || {}
   const groups = snapshot.groups
@@ -80,6 +119,7 @@ export default function ChannelDetail({ channel, onClose, onRefresh, busy, error
               ? linkedKeys.length ? `已创建 ${linkedKeys.length} 个令牌${keysStale?'（上次结果）':''}` : keysStale?'上次未发现令牌':'未创建令牌'
               : loading?'正在查询令牌…':'令牌状态未知'}</span></div>
           </li>})}</ul>}</Paginated>}
+          <WatchSection channel={channel} busy={busy} onChanged={onChannels}/>
           <p className="route-hint route-footnote">{channel.provider==='Sub2API'
             ? '用户专属倍率优先于默认倍率；高峰因子另行叠加，图片、视频等独立计费以上游规则为准。'
             : '倍率由上游按当前账户返回，已包含适用的特殊倍率；自动分组没有固定倍率。'}</p>

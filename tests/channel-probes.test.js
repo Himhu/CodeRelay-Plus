@@ -56,10 +56,10 @@ test('overview renders and refreshes real channel summaries and filters statuses
   await expect(table.locator('tbody tr')).toHaveCount(1)
   await expect(row('部分异常上游')).toBeVisible()
   await table.getByRole('button', { name: '清除筛选', exact: true }).click()
-  await table.getByPlaceholder('搜索渠道或模型').fill('claude-sonnet')
+  await table.getByPlaceholder('搜索渠道、模型或 URL').fill('claude-sonnet')
   await expect(table.locator('tbody tr')).toHaveCount(1)
   await expect(row('正常上游')).toBeVisible()
-  await table.getByPlaceholder('搜索渠道或模型').fill('no-such-model')
+  await table.getByPlaceholder('搜索渠道、模型或 URL').fill('no-such-model')
   await expect(table.getByText('没有匹配的渠道，请调整状态筛选或搜索条件')).toBeVisible()
   await table.getByRole('button', { name: '清除筛选', exact: true }).click()
   const previousReads = reads

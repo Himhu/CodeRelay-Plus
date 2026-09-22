@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import { isAbsolute } from 'node:path'
 import { readFileSync } from 'node:fs'
 import { monitorAPI } from './monitor-api.js'
-import { createChannelStore, createSecondarySiteStore, createConsoleSettingsStore, createUserGatewayStore } from './site-store.js'
+import { createChannelStore, createSecondarySiteStore, createConsoleSettingsStore, createUserGatewayStore, createQQBotStore } from './site-store.js'
 import { createConsoleAuth } from './console-auth.js'
 
 const publicOrigin = process.env.SIGNAL_PUBLIC_ORIGIN
@@ -15,13 +15,17 @@ if (!publicOrigin || !directory || !isAbsolute(directory)) {
 }
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT.')
 
-const api = monitorAPI({ publicOrigin, channelStore: createChannelStore(directory), secondaryStore: createSecondarySiteStore(directory), settingsStore: createConsoleSettingsStore(directory), gatewayStore: createUserGatewayStore(directory) })
+const api = monitorAPI({ publicOrigin, channelStore: createChannelStore(directory), secondaryStore: createSecondarySiteStore(directory), settingsStore: createConsoleSettingsStore(directory), gatewayStore: createUserGatewayStore(directory), qqStore: createQQBotStore(directory) })
 const authenticate = createConsoleAuth({ publicOrigin, directory, build, credentialFile: process.env.SIGNAL_AUTH_FILE || '/etc/signal-monitor/auth.json' })
 const server = createServer((req, res) => {
-  void authenticate(req, res, () => api(req, res, () => {
+  const path = req.url?.split('?')[0]
+  const respond = () => api(req, res, () => {
     res.writeHead(404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
     res.end(JSON.stringify({ error: 'Not found' }))
-  }))
+  })
+  // QQ callbacks have no console session or Origin. The handler checks the signature.
+  if (path === '/api/qq/webhook') return void respond()
+  void authenticate(req, res, respond)
 })
 server.requestTimeout = 30000
 server.headersTimeout = 15000

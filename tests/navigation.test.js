@@ -76,7 +76,7 @@ test('navigation and upstream configurations survive reloads and service restart
   assert.equal(await linked.getByRole('button', { name: '主站渠道', exact: true }).count(), 0)
   await linked.goto(`${base}#secondary-channels`)
   await linked.getByRole('heading', { level: 1, name: '调度站点', exact: true }).waitFor()
-  for (const [label, title, route] of [['日志中心', '日志中心', 'logs'], ['探针监控', '探针监控', 'probes'], ['设置', '设置', 'settings']]) {
+  for (const [label, title, route] of [['日志中心', '日志中心', 'logs'], ['探针监控', '探针监控', 'probes'], ['QQ 机器人', 'QQ 机器人', 'qq-bot'], ['设置', '设置', 'settings']]) {
     await page.getByRole('button', { name: label, exact: true }).click()
     await heading(title)
     assert.equal(new URL(page.url()).hash, `#${route}`)

@@ -19,6 +19,7 @@ test('new-channel automation discovers and probes new tokens while preserving ma
     if (req.url.startsWith('/api/v1/keys?')) return send({ code: 0, data: { page: 1, page_size: 100, total: keyIds.length,
       items: keyIds.map(id => ({ id, name: `key ${id}`, group_id: 1, key: `private-key-${id}`, status: 'active' })) } })
     if (req.url === '/v1/models') return send({ data: [{ id: 'gpt-test' }] })
+    if (req.url === '/api/v1/announcements' || req.url === '/api/v1/subscriptions/progress') return send({ code: 0, data: [] })
     assert.equal(req.url, '/v1/chat/completions')
     paid++
     send({ choices: [{ message: { content: 'OK' }, finish_reason: 'stop' }] })

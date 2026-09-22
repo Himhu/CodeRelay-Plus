@@ -21,7 +21,7 @@ export default function MobileNavigation({ active }) {
   const navigate = id => { setOpen(false); window.location.hash = id }
   return <>
     <button ref={opener} type="button" className="mobile-menu-trigger" aria-label="打开导航" aria-expanded={open} aria-controls="mobile-navigation-menu" onClick={() => setOpen(true)}><List size={23}/></button>
-    <nav className="mobile-navigation" aria-label="移动端主导航">{pages.filter(([id]) => !['settings', 'integrations'].includes(id)).map(([id, label, short, Icon]) =>
+    <nav className="mobile-navigation" aria-label="移动端主导航">{['overview', 'probes', 'secondary-channels', 'logs'].map(id => pages.find(page => page[0] === id)).filter(Boolean).map(([id, label, short, Icon]) =>
       <button key={id} type="button" aria-label={label} aria-current={active === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={21} weight={active === id ? 'fill' : 'regular'}/><span>{short}</span></button>)}</nav>
     {open && <dialog id="mobile-navigation-menu" ref={dialog} className="mobile-menu" aria-labelledby="mobile-menu-title" onCancel={event => { event.preventDefault(); setOpen(false) }} onClick={event => {
       const rect = event.currentTarget.getBoundingClientRect()

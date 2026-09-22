@@ -27,6 +27,7 @@ test('new channels automatically discover tokens and models, isolate failures an
       modelReads++
       return send(200, { data: [{ id: 'cheap-model' }] })
     }
+    if (req.url.includes('/api/v1/announcements') || req.url.includes('/api/v1/subscriptions/progress')) return send(200, { code: 0, data: [] })
     assert.equal(req.url, '/good/v1/chat/completions')
     for await (const chunk of req) { void chunk }
     paidProbes++
@@ -180,11 +181,13 @@ test('route synchronization uses user access, keeps complete snapshots and share
         if (holdGroups) { started(); await holdGroups }
         return send(200, { code: 0, data: [{ id: 1, name: 'User route', rate_multiplier: 2, platform: 'openai', secret: 'private-secret' }] })
       }
+      if (req.url === '/sub/api/v1/announcements' || req.url === '/sub/api/v1/subscriptions/progress') return send(200, { code: 0, data: [] })
       assert.equal(req.url, '/sub/api/v1/groups/rates')
       if (failure) return send(failure === 'denied' ? 403 : 503, { code: failure, message: 'private-secret' })
       return send(200, { code: 0, data: { 1: override } })
     }
     if (req.url === '/new/api/status') return send(200, { success: true, data: { quota_display_type: 'USD', quota_per_unit: 500000 } })
+    if (req.url === '/new/api/notice') return send(200, { success: true, data: '' })
     assert.equal(req.headers.authorization, 'Bearer new-secret')
     assert.equal(req.headers['new-api-user'], '9')
     if (req.url.startsWith('/new/api/token/?')) return send(200, { success: true, data: { p: 1, page_size: 100, total: 0, items: [] } })
